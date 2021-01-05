@@ -103,16 +103,17 @@ scm_i_adjust_min_yield (scm_t_cell_type_statistics *freelist)
    */
   if (freelist->min_yield_fraction)
     {
-      /* Pick largest of last two yields. */
-      long delta = ((SCM_HEAP_SIZE * freelist->min_yield_fraction / 100)
-		   - (long) SCM_MAX (scm_gc_cells_collected_1, scm_gc_cells_collected));
+      unsigned long min_yield = (freelist->heap_size * freelist->min_yield_fraction / 100);
+      if (freelist->min_yield != min_yield)
+	{
 #ifdef DEBUGINFO
-      fprintf (stderr, " after GC = %lu, delta = %ld\n",
-	       (unsigned long) scm_cells_allocated,
-	       (long) delta);
+	  fprintf (stderr, "adjust_min_heap: heap_size %ld: new min_yield %ld\n",
+		   freelist->heap_size,
+		   freelist->min_yield
+		   );
 #endif
-      if (delta > 0)
-	freelist->min_yield += delta;
+	  freelist->min_yield = min_yield;
+	}
     }
 }
 
@@ -122,6 +123,7 @@ scm_init_freelist (scm_t_cell_type_statistics *freelist,
 	       int span,
 	       int min_yield)
 {
+  scm_t_sweep_statistics empty = { 0 };
   if (min_yield < 1)
     min_yield = 1;
   if (min_yield > 99)
@@ -131,8 +133,8 @@ scm_init_freelist (scm_t_cell_type_statistics *freelist,
   freelist->min_yield = 0;
   freelist->min_yield_fraction = min_yield;
   freelist->span = span;
-  freelist->collected = 0;
-  freelist->collected_1 = 0;
+  freelist->current_sweep = empty;
+  freelist->last_sweep = empty;
   freelist->heap_size = 0;
 }
 
@@ -182,8 +184,9 @@ scm_gc_init_freelist (void)
 void
 scm_i_gc_sweep_freelist_reset (scm_t_cell_type_statistics *freelist)
 {
-  freelist->collected_1 = freelist->collected;
-  freelist->collected = 0;
+  scm_t_sweep_statistics zero = { 0 };
+  freelist->last_sweep = freelist->current_sweep;
+  freelist->current_sweep = zero;
   
   /*
     at the end we simply start with the lowest segment again.
@@ -194,5 +197,15 @@ scm_i_gc_sweep_freelist_reset (scm_t_cell_type_statistics *freelist)
 int
 scm_i_gc_grow_heap_p (scm_t_cell_type_statistics * freelist)
 {
-  return SCM_MAX (freelist->collected,freelist->collected_1)  < freelist->min_yield;
+  int grow_p =  SCM_MAX (freelist->current_sweep.unmarked,
+			 freelist->last_sweep.unmarked) < freelist->min_yield;
+#ifdef DEBUGINFO
+  if (grow_p) 
+    fprintf(stderr, "grow heap: min_yield %lu heapsize %lu, collected %lu last collected %lu\n",
+	    freelist->min_yield,
+	    freelist->heap_size,
+	    freelist->current_sweep.unmarked,
+	    freelist->last_sweep.unmarked);
+#endif
+  return grow_p;
 }

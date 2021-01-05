@@ -405,12 +405,21 @@ gc_start_stats (const char *what SCM_UNUSED)
 {
   t_before_gc = scm_c_get_internal_run_time ();
 
-  scm_gc_cells_marked_acc += (double) scm_gc_cells_swept
-    - (double) scm_gc_cells_collected;
-  scm_gc_cells_swept_acc += (double) scm_gc_cells_swept;
+  scm_gc_cells_swept = scm_i_master_freelist.current_sweep.swept +
+    scm_i_master_freelist2.current_sweep.swept;
+  scm_gc_cells_swept_acc += scm_gc_cells_swept;
+    scm_i_master_freelist2.current_sweep.swept;
+  scm_gc_cells_marked_acc += SCM_HEAP_SIZE
+    - scm_i_master_freelist.current_sweep.unmarked
+    - scm_i_master_freelist2.current_sweep.unmarked;
 
+  scm_gc_cells_collected = scm_i_master_freelist.current_sweep.collected +
+    scm_i_master_freelist2.current_sweep.collected;
   scm_gc_cell_yield_percentage = ( scm_gc_cells_collected * 100 ) / SCM_HEAP_SIZE; 
-  
+  scm_cells_allocated = SCM_HEAP_SIZE -
+    (scm_i_master_freelist.current_sweep.unmarked +
+     scm_i_master_freelist2.current_sweep.unmarked);
+    
   scm_gc_cells_swept = 0;
   scm_gc_cells_collected_1 = scm_gc_cells_collected;
 
@@ -495,7 +504,8 @@ scm_gc_for_newcell (scm_t_cell_type_statistics *freelist, SCM *free_cells)
     {
       /*
 	with the advent of lazy sweep, GC yield is only known just
-	before doing the GC.
+	before doing the GC. Since we didn't get any free cells, we
+	can conclude that the sweep has finished the entire heap.
       */
       scm_i_adjust_min_yield (freelist);
 
@@ -552,15 +562,10 @@ scm_i_gc (const char *what)
   scm_c_hook_run (&scm_before_gc_c_hook, 0);
 
 #ifdef DEBUGINFO
-  fprintf (stderr,"gc reason %s\n", what);
-  
-  fprintf (stderr,
-	   scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist))
-	   ? "*"
-	   : (scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist2)) ? "o" : "m"));
+  fprintf (stderr,"gc reason %s, cells: %s, cell2s %s\n", what,
+	   scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist)) ? "empty" : "non-empty",
+	   scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist2)) ? "empty" : "non-empty");
 #endif
-
-  gc_start_stats (what);
 
   /*
     Set freelists to NULL so scm_cons() always triggers gc, causing
@@ -573,7 +578,10 @@ scm_i_gc (const char *what)
     Let's finish the sweep. The conservative GC might point into the
     garbage, and marking that would create a mess.
    */
-  scm_i_sweep_all_segments("GC");
+  scm_i_sweep_all_segments("GC", /* free_only: */ 0);
+  /* now, stats are precise */
+  gc_start_stats (what);
+
   if (scm_mallocated < scm_i_deprecated_memory_return)
     {
       /* The byte count of allocated objects has underflowed.  This is

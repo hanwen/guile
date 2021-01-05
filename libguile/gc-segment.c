@@ -152,39 +152,21 @@ scm_i_clear_segment_mark_space (scm_t_heap_segment *seg)
   Freelist. 
 */
 SCM
-scm_i_sweep_some_cards (scm_t_heap_segment *seg)
+scm_i_sweep_some_cards (scm_t_heap_segment *seg, scm_t_sweep_statistics *stats)
 {
   SCM cells = SCM_EOL;
-  int threshold = 512;
-  int collected = 0;
-  int (*sweeper) (scm_t_cell *, SCM *, scm_t_heap_segment* )
+  int threshold = 512 + stats->unmarked;
+  void (*sweeper) (scm_t_cell *, SCM *, scm_t_heap_segment *, scm_t_sweep_statistics *)
     = (seg->first_time) ? &scm_i_init_card_freelist : &scm_i_sweep_card;
-
   scm_t_cell * next_free = seg->next_free_card;
-  int cards_swept = 0;
   
-  while (collected < threshold && next_free < seg->bounds[1])
+  while (stats->unmarked < threshold && next_free < seg->bounds[1])
     {
-      collected += (*sweeper) (next_free, &cells, seg);
+      (*sweeper) (next_free, &cells, seg, stats);
       next_free += SCM_GC_CARD_N_CELLS;
-      cards_swept ++;
     }
 
-  scm_gc_cells_swept +=  cards_swept * (SCM_GC_CARD_N_CELLS - SCM_GC_CARD_N_HEADER_CELLS);
-  scm_gc_cells_collected += collected * seg->span;
-
-  if (!seg->first_time)
-    {
-      scm_gc_cells_allocated_acc +=
-	(scm_cells_allocated - scm_last_cells_allocated);
-
-      scm_cells_allocated -= collected * seg->span;
-      scm_last_cells_allocated = scm_cells_allocated;
-    }
-  seg->freelist->collected += collected  * seg->span;
-  
-
-  if(next_free == seg->bounds[1])
+  if (next_free == seg->bounds[1])
     {
       seg->first_time = 0;
     }
@@ -205,41 +187,31 @@ scm_i_sweep_some_cards (scm_t_heap_segment *seg)
   segment again, the statistics are off.
  */
 void
-scm_i_sweep_segment (scm_t_heap_segment * seg)
+scm_i_sweep_segment (scm_t_heap_segment * seg, int free_cells_only)
 {
   scm_t_cell * p = seg->next_free_card;
-  int yield = scm_gc_cells_collected;
-  int coll = seg->freelist->collected;
-  unsigned long alloc = scm_cells_allocated ;
-  unsigned long last_alloc = scm_last_cells_allocated;
-  double last_total
-    = scm_gc_cells_allocated_acc
-    + (alloc - last_alloc);
+  scm_t_sweep_statistics stats = seg->freelist->current_sweep;
   
-  while (scm_i_sweep_some_cards (seg) != SCM_EOL)
+  while (scm_i_sweep_some_cards (seg, &stats) != SCM_EOL)
     ;
-  
-  scm_gc_cells_collected = yield;
 
-  /*
-   * restore old stats. 
-   */
-  scm_gc_cells_allocated_acc = last_total;
-  scm_cells_allocated = alloc;
-  scm_last_cells_allocated = alloc;
-
-  seg->freelist->collected = coll; 
-  seg->next_free_card =p;
+  if (free_cells_only) {
+    seg->freelist->current_sweep.collected = stats.collected;
+    seg->freelist->current_sweep.swept = stats.swept;
+    seg->next_free_card = p;
+  } else {
+    seg->freelist->current_sweep = stats;
+  }
 }
 
 void
-scm_i_sweep_all_segments (char const  *reason)
+scm_i_sweep_all_segments (char const  *reason, int free_cells_only)
 {
-  int i= 0; 
-
+  int i = 0; 
   for (i = 0; i < scm_i_heap_segment_table_size; i++)
     {
-      scm_i_sweep_segment (scm_i_heap_segment_table[i]);
+      scm_i_sweep_segment (scm_i_heap_segment_table[i],
+			   free_cells_only);
     }
 }
 
@@ -340,7 +312,7 @@ scm_i_sweep_some_segments (scm_t_cell_type_statistics * fl)
 {
   int i = fl->heap_segment_idx;
   SCM collected = SCM_EOL;
-  
+  scm_t_sweep_statistics before = fl->current_sweep;
   if (i == -1)
     i++;
   
@@ -350,14 +322,17 @@ scm_i_sweep_some_segments (scm_t_cell_type_statistics * fl)
       if (scm_i_heap_segment_table[i]->freelist != fl)
 	continue;
       
-      collected = scm_i_sweep_some_cards (scm_i_heap_segment_table[i]);
-
-
+      collected = scm_i_sweep_some_cards (scm_i_heap_segment_table[i],
+					  &fl->current_sweep
+					  );
       if (collected != SCM_EOL)       /* Don't increment i */
 	break;
     }
 
   fl->heap_segment_idx = i;
+
+  scm_gc_cells_swept += fl->current_sweep.swept;
+  scm_gc_cells_collected += fl->current_sweep.collected;
   
   return collected;
 }
@@ -502,16 +477,14 @@ scm_i_get_new_heap_segment (scm_t_cell_type_statistics *freelist,
       = (f * h - scm_gc_cells_collected) / (1.0 - f);
 
     /* Make heap grow with factor 1.5 */
-    len =  freelist->heap_size / 2;
+    len = freelist->heap_size / 2;
 #ifdef DEBUGINFO
-    fprintf (stderr, "(%ld < %ld)", (long) len, (long) min_cells);
+    fprintf (stderr, "proposed new size %ld (min %ld)\n", (long) len, (long) min_cells);
 #endif
 
     if (len < min_cells)
       len = (unsigned long) min_cells;  
     len *= sizeof (scm_t_cell);
-    /* force new sampling */
-    freelist->collected = LONG_MAX;
   }
 
   if (len > scm_max_segment_size)

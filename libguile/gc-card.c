@@ -84,15 +84,15 @@ SCM scm_i_structs_to_free;
 
   --hwn.
  */
-int
-scm_i_sweep_card (scm_t_cell *  p, SCM *free_list, scm_t_heap_segment*seg)
+void
+scm_i_sweep_card (scm_t_cell *p, SCM *free_list, scm_t_heap_segment *seg,
+		  scm_t_sweep_statistics *stats)
 #define FUNC_NAME "sweep_card"
 {
   scm_t_c_bvec_long *bitvec = SCM_GC_CARD_BVEC(p);
   scm_t_cell * end = p + SCM_GC_CARD_N_CELLS;
   int span = seg->span;
-  int offset =SCM_MAX (SCM_GC_CARD_N_HEADER_CELLS, span);
-  int free_count  = 0;
+  int offset = SCM_MAX (SCM_GC_CARD_N_HEADER_CELLS, span);
 
   /*
     I tried something fancy with shifting by one bit every word from
@@ -101,6 +101,8 @@ scm_i_sweep_card (scm_t_cell *  p, SCM *free_list, scm_t_heap_segment*seg)
    */
   for (p += offset; p < end; p += span, offset += span)
     {
+      stats->swept += span;
+      
       SCM scmptr = PTR2SCM (p);
       if (SCM_C_BVEC_GET (bitvec, offset))
         continue;
@@ -218,7 +220,7 @@ scm_i_sweep_card (scm_t_cell *  p, SCM *free_list, scm_t_heap_segment*seg)
 	  switch SCM_TYP16 (scmptr)
 	    {
 	    case scm_tc_free_cell:
-	      free_count --;
+	      stats->collected -= span;
 	      break;
 	    default:
 	      {
@@ -262,10 +264,10 @@ scm_i_sweep_card (scm_t_cell *  p, SCM *free_list, scm_t_heap_segment*seg)
       SCM_GC_SET_CELL_WORD (scmptr, 0, scm_tc_free_cell);	  
       SCM_SET_FREE_CELL_CDR (scmptr, PTR2SCM (*free_list));
       *free_list = scmptr;
-      free_count ++;
-    }
 
-  return free_count;
+      stats->collected += span;
+      stats->unmarked += span;
+    }
 }
 #undef FUNC_NAME
 
@@ -273,9 +275,10 @@ scm_i_sweep_card (scm_t_cell *  p, SCM *free_list, scm_t_heap_segment*seg)
 /*
   Like sweep, but no complicated logic to do the sweeping.
  */
-int
-scm_i_init_card_freelist (scm_t_cell *  card, SCM *free_list,
-			scm_t_heap_segment*seg)
+void
+scm_i_init_card_freelist (scm_t_cell *card, SCM *free_list,
+			  scm_t_heap_segment *seg,
+			  scm_t_sweep_statistics *stats)
 {
   int span = seg->span;
   scm_t_cell *end = card + SCM_GC_CARD_N_CELLS;
@@ -283,7 +286,7 @@ scm_i_init_card_freelist (scm_t_cell *  card, SCM *free_list,
 
   scm_t_c_bvec_long * bvec_ptr =  (scm_t_c_bvec_long* ) seg->bounds[1];
   int idx = (card  - seg->bounds[0]) / SCM_GC_CARD_N_CELLS; 
-
+  int cell_count = (SCM_GC_CARD_N_CELLS - SCM_MAX(span, SCM_GC_CARD_N_HEADER_CELLS));
   bvec_ptr += idx *SCM_GC_CARD_BVEC_SIZE_IN_LONGS;
   SCM_GC_SET_CELL_BVEC (card, bvec_ptr);
   
@@ -298,7 +301,9 @@ scm_i_init_card_freelist (scm_t_cell *  card, SCM *free_list,
       *free_list = scmptr;
     }
 
-  return SCM_GC_CARD_N_CELLS - SCM_MAX(span, SCM_GC_CARD_N_HEADER_CELLS);
+  stats->collected += cell_count;
+  stats->unmarked += cell_count;
+  stats->swept += cell_count;
 }
 
 

@@ -78,6 +78,19 @@ int scm_getenv_int (const char *var, int def);
 
 typedef enum { return_on_error, abort_on_error } policy_on_error;
 
+/* statistics for sweeping. Numbers expressed in scm_t_cell, even if
+   seg->span=2 */
+typedef struct scm_t_sweep_statistics {
+  /* number of cells that changed to scm_tc_free_cell */
+  unsigned long collected;
+
+  /* number of cells that were unmarked */
+  unsigned long unmarked;
+
+  /* number of cells that were swept. */
+  unsigned long swept;
+} scm_t_sweep_statistics;
+
 /* gc-freelist*/
 
 /*
@@ -100,23 +113,21 @@ typedef struct scm_t_cell_type_statistics {
    */
   int min_yield_fraction;
   
-  /* number of cells per object on this list */
+  /* number of cells per object on this list, 1 or 2. */
   int span;
 
-  /* number of collected cells during last GC */
-  unsigned long collected;
+  /* number of cells currently collected (ie. not marked during last GC) */
+  scm_t_sweep_statistics current_sweep;
 
-  /* number of collected cells during penultimate GC */
-  unsigned long collected_1;
+  /* number of collected cells after penultimate mark */
+  scm_t_sweep_statistics last_sweep;
 
   /* total number of cells in heap segments
    * belonging to this list.
    */
   unsigned long heap_size;
-
   
 } scm_t_cell_type_statistics;
-
 
 extern scm_t_cell_type_statistics scm_i_master_freelist;
 extern scm_t_cell_type_statistics scm_i_master_freelist2;
@@ -195,9 +206,8 @@ typedef struct scm_t_heap_segment
      All segments usually point to the same one, scm_i_freelist.  */
   scm_t_cell_type_statistics *freelist;
   
-  /* number of cells per object in this segment */
+  /* number of cells per object in this segment, either 1 or 2. */
   int span;
-
 
   /*
     Is this the first time that the cells are accessed? 
@@ -220,8 +230,9 @@ extern scm_t_heap_segment ** scm_i_heap_segment_table;
 extern size_t scm_i_heap_segment_table_size;
 
 
-int scm_i_init_card_freelist (scm_t_cell * card, SCM *free_list,scm_t_heap_segment*);
-int scm_i_sweep_card (scm_t_cell * card, SCM *free_list, scm_t_heap_segment*);
+void scm_i_init_card_freelist (scm_t_cell *card, SCM *free_list, scm_t_heap_segment *seg,
+			       scm_t_sweep_statistics *stats);
+void scm_i_sweep_card (scm_t_cell * card, SCM *free_list, scm_t_heap_segment*, scm_t_sweep_statistics *stats);
 void scm_i_card_statistics (scm_t_cell *p, SCM hashtab, scm_t_heap_segment *seg);
 char const *scm_i_tag_name (scm_t_bits tag); /* MOVEME */
 
@@ -231,8 +242,8 @@ int scm_i_segment_cell_count (scm_t_heap_segment * seg);
 
 void scm_i_clear_segment_mark_space (scm_t_heap_segment *seg);
 scm_t_heap_segment * scm_i_make_empty_heap_segment (scm_t_cell_type_statistics*);
-SCM scm_i_sweep_some_cards (scm_t_heap_segment *seg);
-void scm_i_sweep_segment (scm_t_heap_segment * seg);
+SCM scm_i_sweep_some_cards (scm_t_heap_segment *seg, scm_t_sweep_statistics *stats);
+void scm_i_sweep_segment (scm_t_heap_segment * seg, int free_only);
 
 void scm_i_heap_segment_statistics (scm_t_heap_segment *seg, SCM tab);
 
@@ -244,7 +255,7 @@ void scm_i_clear_mark_space (void);
 void scm_i_sweep_segments (void);
 SCM scm_i_sweep_some_segments (scm_t_cell_type_statistics * fl);
 void scm_i_reset_segments (void);
-void scm_i_sweep_all_segments (char const *reason);
+void scm_i_sweep_all_segments (char const *reason, int free_only);
 SCM scm_i_all_segments_statistics (SCM hashtab);
 void scm_i_make_initial_segment (int init_heap_size, scm_t_cell_type_statistics *freelist);
 
