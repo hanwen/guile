@@ -71,7 +71,9 @@ scm_i_heap_segment_statistics (scm_t_heap_segment *seg, SCM tab)
 
 
 /*
-  Fill SEGMENT with memory both for data and mark bits.
+  Fill SEGMENT with memory both for data and mark bits.  REQUESTED is
+  the number of bytes to allocate for cell-data, ie. excluding space
+  for mark bits.
 
   RETURN:  1 on success, 0 failure  
  */
@@ -556,7 +558,8 @@ scm_i_make_initial_segment (int init_heap_size, scm_t_cell_type_statistics *free
     }
 
   /*
-    Why the fuck  try twice? --hwn
+    If the user requested a very large init_heap_size, we might
+    fail. Try something more modest.
    */
   if (!seg->malloced)
     {
