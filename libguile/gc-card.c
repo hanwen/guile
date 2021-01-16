@@ -89,10 +89,10 @@ scm_i_sweep_card (scm_t_cell *  p, SCM *free_list, scm_t_heap_segment*seg)
 #define FUNC_NAME "sweep_card"
 {
   scm_t_c_bvec_long *bitvec = SCM_GC_CARD_BVEC(p);
-  scm_t_cell * end = p + SCM_GC_CARD_N_CELLS;
+  scm_t_cell *end = p + SCM_GC_CARD_N_CELLS;
   int span = seg->span;
-  int offset =SCM_MAX (SCM_GC_CARD_N_HEADER_CELLS, span);
-  int free_count  = 0;
+  int offset = SCM_MAX (SCM_GC_CARD_N_HEADER_CELLS, span);
+  int free_count = 0;
 
   /*
     I tried something fancy with shifting by one bit every word from
@@ -281,8 +281,8 @@ scm_i_init_card_freelist (scm_t_cell *  card, SCM *free_list,
   scm_t_cell *end = card + SCM_GC_CARD_N_CELLS;
   scm_t_cell *p = end - span;
 
-  scm_t_c_bvec_long * bvec_ptr =  (scm_t_c_bvec_long* ) seg->bounds[1];
-  int idx = (card  - seg->bounds[0]) / SCM_GC_CARD_N_CELLS; 
+  scm_t_c_bvec_long *bvec_ptr =  (scm_t_c_bvec_long* ) seg->bounds[1];
+  int idx = (card - seg->bounds[0]) / SCM_GC_CARD_N_CELLS; 
 
   bvec_ptr += idx *SCM_GC_CARD_BVEC_SIZE_IN_LONGS;
   SCM_GC_SET_CELL_BVEC (card, bvec_ptr);
@@ -306,7 +306,7 @@ void
 scm_i_card_statistics (scm_t_cell *p, SCM hashtab, scm_t_heap_segment *seg)
 {
   scm_t_c_bvec_long *bitvec = SCM_GC_CARD_BVEC(p);
-  scm_t_cell * end = p + SCM_GC_CARD_N_CELLS;
+  scm_t_cell *end = p + SCM_GC_CARD_N_CELLS;
   int span = seg->span;
   int offset = SCM_MAX (SCM_GC_CARD_N_HEADER_CELLS, span);
 
@@ -426,7 +426,7 @@ scm_i_tag_name (scm_t_bits tag)
 
 typedef struct scm_dbg_t_list_cell {
   scm_t_bits car;  
-  struct scm_dbg_t_list_cell * cdr;
+  struct scm_dbg_t_list_cell *cdr;
 } scm_dbg_t_list_cell;
 
 

@@ -29,10 +29,6 @@
 #include "libguile/gc.h"
 #include "libguile/private-gc.h"
 
-
-
-
-
 size_t scm_max_segment_size;
 
 scm_t_heap_segment *
@@ -69,7 +65,6 @@ scm_i_heap_segment_statistics (scm_t_heap_segment *seg, SCM tab)
 }
 
 
-
 /*
   Fill SEGMENT with memory both for data and mark bits.  REQUESTED is
   the number of bytes to allocate for cell-data, ie. excluding space
@@ -90,8 +85,7 @@ scm_i_initialize_heap_segment_data (scm_t_heap_segment * segment, size_t request
     one card extra due to alignment
   */
   size_t mem_needed = (1+card_count) * SCM_GC_SIZEOF_CARD
-    + SCM_GC_CARD_BVEC_SIZE_IN_LONGS * card_count * SCM_SIZEOF_LONG
-    ;
+    + SCM_GC_CARD_BVEC_SIZE_IN_LONGS * card_count * SCM_SIZEOF_LONG;
   scm_t_cell *  memory = 0;
 
   /*
@@ -120,7 +114,7 @@ scm_i_initialize_heap_segment_data (scm_t_heap_segment * segment, size_t request
 }
 
 int
-scm_i_segment_card_count (scm_t_heap_segment * seg)
+scm_i_segment_card_count (scm_t_heap_segment *seg)
 {
   return (seg->bounds[1] - seg->bounds[0]) / SCM_GC_CARD_N_CELLS;
 }
@@ -129,7 +123,7 @@ scm_i_segment_card_count (scm_t_heap_segment * seg)
   Return the number of available single-cell data cells. 
  */
 int
-scm_i_segment_cell_count (scm_t_heap_segment * seg)
+scm_i_segment_cell_count (scm_t_heap_segment *seg)
 {
   return scm_i_segment_card_count (seg) * (SCM_GC_CARD_N_CELLS - SCM_GC_CARD_N_HEADER_CELLS)
     + ((seg->span == 2) ? -1 : 0);
@@ -138,10 +132,10 @@ scm_i_segment_cell_count (scm_t_heap_segment * seg)
 void
 scm_i_clear_segment_mark_space (scm_t_heap_segment *seg)
 {
-  scm_t_cell *  markspace = seg->bounds[1];
+  scm_t_cell *markspace = seg->bounds[1];
 
   memset (markspace, 0x00,
-	  scm_i_segment_card_count (seg) *  SCM_GC_CARD_BVEC_SIZE_IN_LONGS * SCM_SIZEOF_LONG);
+	  scm_i_segment_card_count (seg) * SCM_GC_CARD_BVEC_SIZE_IN_LONGS * SCM_SIZEOF_LONG);
 }
 
 /*
@@ -157,10 +151,10 @@ scm_i_sweep_some_cards (scm_t_heap_segment *seg)
   SCM cells = SCM_EOL;
   int threshold = 512;
   int collected = 0;
-  int (*sweeper) (scm_t_cell *, SCM *, scm_t_heap_segment* )
+  int (*sweeper) (scm_t_cell *, SCM *, scm_t_heap_segment*)
     = (seg->first_time) ? &scm_i_init_card_freelist : &scm_i_sweep_card;
 
-  scm_t_cell * next_free = seg->next_free_card;
+  scm_t_cell *next_free = seg->next_free_card;
   int cards_swept = 0;
   
   while (collected < threshold && next_free < seg->bounds[1])
@@ -205,12 +199,12 @@ scm_i_sweep_some_cards (scm_t_heap_segment *seg)
   segment again, the statistics are off.
  */
 void
-scm_i_sweep_segment (scm_t_heap_segment * seg)
+scm_i_sweep_segment (scm_t_heap_segment *seg)
 {
-  scm_t_cell * p = seg->next_free_card;
+  scm_t_cell *p = seg->next_free_card;
   int yield = scm_gc_cells_collected;
   int coll = seg->freelist->collected;
-  unsigned long alloc = scm_cells_allocated ;
+  unsigned long alloc = scm_cells_allocated;
   unsigned long last_alloc = scm_last_cells_allocated;
   double last_total
     = scm_gc_cells_allocated_acc
@@ -229,7 +223,7 @@ scm_i_sweep_segment (scm_t_heap_segment * seg)
   scm_last_cells_allocated = alloc;
 
   seg->freelist->collected = coll; 
-  seg->next_free_card =p;
+  seg->next_free_card = p;
 }
 
 void
@@ -259,7 +253,7 @@ scm_i_sweep_all_segments (char const  *reason)
   perhaps it is worthwhile to remove the 2nd level of indirection in
   the table, but this certainly makes for cleaner code.
 */
-scm_t_heap_segment ** scm_i_heap_segment_table;
+scm_t_heap_segment **scm_i_heap_segment_table;
 size_t scm_i_heap_segment_table_size;
 scm_t_cell *lowest_cell;
 scm_t_cell *highest_cell; 
@@ -280,7 +274,7 @@ scm_i_clear_mark_space (void)
   RETURN: index of inserted segment.
  */
 int
-scm_i_insert_segment (scm_t_heap_segment * seg)
+scm_i_insert_segment (scm_t_heap_segment *seg)
 {
   size_t size = (scm_i_heap_segment_table_size + 1) * sizeof (scm_t_heap_segment *);
   SCM_SYSCALL(scm_i_heap_segment_table = ((scm_t_heap_segment **)
@@ -336,7 +330,7 @@ scm_i_insert_segment (scm_t_heap_segment * seg)
 }
 
 SCM
-scm_i_sweep_some_segments (scm_t_cell_type_statistics * fl)
+scm_i_sweep_some_segments (scm_t_cell_type_statistics *fl)
 {
   int i = fl->heap_segment_idx;
   SCM collected = SCM_EOL;
@@ -369,7 +363,7 @@ scm_i_reset_segments (void)
   int i = 0;
   for (; i < scm_i_heap_segment_table_size; i++)
     {
-      scm_t_heap_segment * seg = scm_i_heap_segment_table[i];
+      scm_t_heap_segment *seg = scm_i_heap_segment_table[i];
       seg->next_free_card = seg->bounds[0];
     }
 }
@@ -385,7 +379,7 @@ scm_i_all_segments_statistics (SCM tab)
   int i = 0;
   for (; i < scm_i_heap_segment_table_size; i++)
     {
-      scm_t_heap_segment * seg = scm_i_heap_segment_table[i];
+      scm_t_heap_segment *seg = scm_i_heap_segment_table[i];
       scm_i_heap_segment_statistics (seg, tab);
     }
 
@@ -410,12 +404,12 @@ scm_i_find_heap_segment_containing_object (SCM obj)
   if (!CELL_P (obj))
     return -1;
 
-  if ((scm_t_cell* ) obj < lowest_cell || (scm_t_cell*) obj >= highest_cell)
+  if ((scm_t_cell*) obj < lowest_cell || (scm_t_cell*) obj >= highest_cell)
     return -1;
 
   
     {
-      scm_t_cell *  ptr = SCM2PTR (obj);
+      scm_t_cell *ptr = SCM2PTR (obj);
       unsigned long int i = 0;
       unsigned long int j = scm_i_heap_segment_table_size - 1;
 
@@ -520,7 +514,7 @@ scm_i_get_new_heap_segment (scm_t_cell_type_statistics *freelist,
     len = SCM_MIN_HEAP_SEG_SIZE;
 
   {
-    scm_t_heap_segment * seg = scm_i_make_empty_heap_segment (freelist);
+    scm_t_heap_segment *seg = scm_i_make_empty_heap_segment (freelist);
 
     /* Allocate with decaying ambition. */
     while (len >= SCM_MIN_HEAP_SEG_SIZE)
@@ -545,7 +539,7 @@ scm_i_get_new_heap_segment (scm_t_cell_type_statistics *freelist,
 void
 scm_i_make_initial_segment (int init_heap_size, scm_t_cell_type_statistics *freelist)
 {
-  scm_t_heap_segment * seg = scm_i_make_empty_heap_segment (freelist);
+  scm_t_heap_segment *seg = scm_i_make_empty_heap_segment (freelist);
 
   if (init_heap_size < 1)
     {

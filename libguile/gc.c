@@ -350,8 +350,8 @@ SCM_DEFINE (scm_gc_stats, "gc-stats", 0, 0, 0,
     (double) scm_gc_cells_swept_acc
     + (double) scm_gc_cells_swept;
   local_scm_gc_cells_marked = scm_gc_cells_marked_acc 
-    +(double) scm_gc_cells_swept 
-    -(double) scm_gc_cells_collected;
+    + (double) scm_gc_cells_swept 
+    - (double) scm_gc_cells_collected;
 
   local_scm_total_cells_allocated = scm_gc_cells_allocated_acc
     + (double) (scm_cells_allocated - scm_last_cells_allocated);

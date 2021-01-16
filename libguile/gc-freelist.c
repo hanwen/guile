@@ -119,8 +119,8 @@ scm_i_adjust_min_yield (scm_t_cell_type_statistics *freelist)
 
 static void
 scm_init_freelist (scm_t_cell_type_statistics *freelist,
-	       int span,
-	       int min_yield)
+		   int span,
+		   int min_yield)
 {
   if (min_yield < 1)
     min_yield = 1;
@@ -194,5 +194,5 @@ scm_i_gc_sweep_freelist_reset (scm_t_cell_type_statistics *freelist)
 int
 scm_i_gc_grow_heap_p (scm_t_cell_type_statistics * freelist)
 {
-  return SCM_MAX (freelist->collected,freelist->collected_1)  < freelist->min_yield;
+  return SCM_MAX (freelist->collected, freelist->collected_1)  < freelist->min_yield;
 }
