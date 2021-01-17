@@ -208,7 +208,7 @@ unsigned long scm_mtrigger;
 unsigned long scm_cells_allocated = 0;
 unsigned long scm_last_cells_allocated;
 unsigned long scm_mallocated = 0;
-unsigned long scm_gc_cells_collected;
+unsigned long scm_gc_cells_collected; /* Number of cells marked as garbage in last mark phase. */
 unsigned long scm_gc_cells_collected_1 = 0; /* previous GC yield */
 unsigned long scm_gc_malloc_collected;
 unsigned long scm_gc_ports_collected;
