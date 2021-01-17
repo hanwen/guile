@@ -552,12 +552,9 @@ scm_i_gc (const char *what)
   scm_c_hook_run (&scm_before_gc_c_hook, 0);
 
 #ifdef DEBUGINFO
-  fprintf (stderr,"gc reason %s\n", what);
-  
-  fprintf (stderr,
-	   scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist))
-	   ? "*"
-	   : (scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist2)) ? "o" : "m"));
+  fprintf (stderr, "gc reason %s (freelist1 %s, freelist2 %s)\n", what,
+	   scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist)) ? "empty" : "nonempty",
+	   scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist2)) ? "empty" : "nonempty");
 #endif
 
   gc_start_stats (what);

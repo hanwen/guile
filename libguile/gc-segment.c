@@ -498,7 +498,7 @@ scm_i_get_new_heap_segment (scm_t_cell_type_statistics *freelist,
     /* Make heap grow with factor 1.5 */
     len =  freelist->heap_size / 2;
 #ifdef DEBUGINFO
-    fprintf (stderr, "(%ld < %ld)", (long) len, (long) min_cells);
+    fprintf (stderr, "new_heap_segment: %ld (min %ld)\n", (long) len, (long) min_cells);
 #endif
 
     if (len < min_cells)

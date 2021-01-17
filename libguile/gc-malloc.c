@@ -244,7 +244,7 @@ increase_mtrigger (size_t size, const char *what)
       scm_gc_malloc_yield_percentage = (int) (100  * yield);
 
 #ifdef DEBUGINFO
-      fprintf (stderr,  "prev %lud , now %lud, yield %4.2lf, want %d",
+      fprintf (stderr,  "prev %lud , now %lud, yield %4.2lf, want %d\n",
 	       prev_alloced,
 	       scm_mallocated,
 	       100.0 * yield,
