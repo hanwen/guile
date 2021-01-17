@@ -403,8 +403,6 @@ SCM_DEFINE (scm_gc_stats, "gc-stats", 0, 0, 0,
 static void
 gc_start_stats (const char *what SCM_UNUSED)
 {
-  t_before_gc = scm_c_get_internal_run_time ();
-
   scm_gc_cells_marked_acc += (double) scm_gc_cells_swept
     - (double) scm_gc_cells_collected;
   scm_gc_cells_swept_acc += (double) scm_gc_cells_swept;
@@ -551,13 +549,13 @@ scm_i_gc (const char *what)
 
   scm_c_hook_run (&scm_before_gc_c_hook, 0);
 
+  t_before_gc = scm_c_get_internal_run_time ();
+
 #ifdef DEBUGINFO
   fprintf (stderr, "gc reason %s (freelist1 %s, freelist2 %s)\n", what,
 	   scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist)) ? "empty" : "nonempty",
 	   scm_is_null (*SCM_FREELIST_LOC (scm_i_freelist2)) ? "empty" : "nonempty");
 #endif
-
-  gc_start_stats (what);
 
   /*
     Set freelists to NULL so scm_cons() always triggers gc, causing
@@ -570,7 +568,12 @@ scm_i_gc (const char *what)
     Let's finish the sweep. The conservative GC might point into the
     garbage, and marking that would create a mess.
    */
-  scm_i_sweep_all_segments("GC");
+  while (scm_i_sweep_some_segments(&scm_i_master_freelist) != SCM_EOL)
+    ;
+  while (scm_i_sweep_some_segments(&scm_i_master_freelist2) != SCM_EOL)
+    ;
+  
+  gc_start_stats (what);
   if (scm_mallocated < scm_i_deprecated_memory_return)
     {
       /* The byte count of allocated objects has underflowed.  This is
