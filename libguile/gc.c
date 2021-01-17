@@ -408,7 +408,14 @@ gc_start_stats (const char *what SCM_UNUSED)
   scm_gc_cells_swept_acc += (double) scm_gc_cells_swept;
 
   scm_gc_cell_yield_percentage = ( scm_gc_cells_collected * 100 ) / SCM_HEAP_SIZE; 
-  
+  scm_gc_cells_allocated_acc +=
+    (scm_cells_allocated - scm_last_cells_allocated);
+
+  scm_last_cells_allocated = scm_cells_allocated;
+  scm_cells_allocated =  
+    (scm_i_master_freelist.heap_size - scm_i_master_freelist.collected) +
+    (scm_i_master_freelist2.heap_size - scm_i_master_freelist2.collected);
+	  
   scm_gc_cells_swept = 0;
   scm_gc_cells_collected_1 = scm_gc_cells_collected;
 
