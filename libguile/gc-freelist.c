@@ -103,16 +103,14 @@ scm_i_adjust_min_yield (scm_t_cell_type_statistics *freelist)
    */
   if (freelist->min_yield_fraction)
     {
-      /* Pick largest of last two yields. */
-      long delta = ((SCM_HEAP_SIZE * freelist->min_yield_fraction / 100)
-		   - (long) SCM_MAX (scm_gc_cells_collected_1, scm_gc_cells_collected));
-      if (delta > 0)
+      unsigned long new_min_yield = (freelist->heap_size * freelist->min_yield_fraction) / 100;
+      if (freelist->min_yield != new_min_yield)
 	{
-	  freelist->min_yield += delta;
 #ifdef DEBUGINFO
-	  fprintf (stderr, " new min_yield = %lu, old = %lu\n",
-	       freelist->min_yield, freelist->min_yield-delta);
+	  fprintf (stderr, "new_min_yield = %lu, old = %lu\n",
+		   new_min_yield, freelist->min_yield);
 #endif
+	  freelist->min_yield = new_min_yield;
 	}
     }
 }
